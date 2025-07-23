@@ -1,4 +1,4 @@
-const makeWASocket = require("baileys").default
+const makeWASocket = require("ab-baileys").default
 const {
   default: ToxxicTechConnect,
   delay,
@@ -16,7 +16,7 @@ const {
   jidDecode,
   proto,
   Browsers,
-} = require("baileys")
+} = require("ab-baileys")
 const NodeCache = require("node-cache")
 const Pino = require("pino")
 const readline = require("readline")
