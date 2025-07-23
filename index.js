@@ -29,7 +29,10 @@ const question = (text) => {
     rl.question(text, resolve)
   })
 }
-const config = require("../config") // Adjusted path to config.js
+const config = {
+  prefix: "!"
+}
+// Adjusted path to config.js
 
 let ToxxicTech // Declare the ToxxicTech variable before using it
 
