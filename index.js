@@ -1,143 +1,166 @@
+const makeWASocket = require("baileys").default
+const {
+  default: ToxxicTechConnect,
+  delay,
+  PHONENUMBER_MCC,
+  makeCacheableSignalKeyStore,
+  useMultiFileAuthState,
+  DisconnectReason,
+  fetchLatestBaileysVersion,
+  generateForwardMessageContent,
+  prepareWAMessageMedia,
+  generateWAMessageFromContent,
+  generateMessageID,
+  downloadContentFromMessage,
+  makeInMemoryStore,
+  jidDecode,
+  proto,
+  Browsers,
+} = require("baileys")
+const NodeCache = require("node-cache")
+const Pino = require("pino")
+const readline = require("readline")
+const { parsePhoneNumber } = require("libphonenumber-js")
+const store = makeInMemoryStore({ logger: Pino({ level: "silent", stream: "store" }) })
+const axios = require("axios")
+const question = (text) => {
+  const rl = readline.createInterface({ input: process.stdin, output: process.stdout })
+  return new Promise((resolve) => {
+    rl.question(text, resolve)
+  })
+}
+const config = require("../config") // Adjusted path to config.js
 
-const express = require("express");
-const app = express();
+let ToxxicTech // Declare the ToxxicTech variable before using it
 
-
-
-
-
-const pino = require("pino");
-let { toBuffer } = require("qrcode");
-const path = require('path');
-const fs = require("fs-extra");
-const { Boom } = require("@hapi/boom");
-const PORT = process.env.PORT ||  5000
-const MESSAGE = process.env.MESSAGE ||  `
-╔════◇
-║ *『 WAOW YOU CHOOSE SUHAIL-MD 』*
-║ _You complete first step to making Bot._
-╚════════════════════════╝
-╔═════◇
-║  『••• 𝗩𝗶𝘀𝗶𝘁 𝗙𝗼𝗿 𝗛𝗲𝗹𝗽 •••』
-║ *Ytube:* _youtube.com/SuhailTechInfo_
-║ *Owner:* _https://wa.me/923184474176_
-║ *Note :*_Don't provide your SESSION_ID to_
-║ _anyone otherwise that can access chats_
-╚════════════════════════╝
-`
-
-
-
-
-
-
-
-
-
-
-
-if (fs.existsSync('./auth_info_baileys')) {
-    fs.emptyDirSync(__dirname + '/auth_info_baileys');
-  };
-  
-  app.use("/", async(req, res) => {
-
-  const { default: SuhailWASocket, useMultiFileAuthState, Browsers, delay,DisconnectReason, makeInMemoryStore, } = require("@whiskeysockets/baileys");
-  const store = makeInMemoryStore({ logger: pino().child({ level: 'silent', stream: 'store' }) })
-  async function SUHAIL() {
-    const { state, saveCreds } = await useMultiFileAuthState(__dirname + '/auth_info_baileys')
-    try {
-      let Smd =SuhailWASocket({ 
-        printQRInTerminal: false,
-        logger: pino({ level: "silent" }), 
-        browser: Browsers.baileys("Desktop"),
-        auth: state 
-        });
-
-
-      Smd.ev.on("connection.update", async (s) => {
-        const { connection, lastDisconnect, qr } = s;
-        if (qr) { res.end(await toBuffer(qr)); }
-
-
-        if (connection == "open"){
-          await delay(3000);
-          let user = Smd.user.id;
-
-
-//===========================================================================================
-//===============================  SESSION ID    ===========================================
-//===========================================================================================
-
-          let CREDS = fs.readFileSync(__dirname + '/auth_info_baileys/creds.json')
-          var Scan_Id = Buffer.from(CREDS).toString('base64')
-         // res.json({status:true,Scan_Id })
-          console.log(`
-====================  SESSION ID  ==========================                   
-SESSION-ID ==> ${Scan_Id}
--------------------   SESSION CLOSED   -----------------------
-`)
-
-
-          let msgsss = await Smd.sendMessage(user, { text:  Scan_Id });
-          await Smd.sendMessage(user, { text: MESSAGE } , { quoted : msgsss });
-          await delay(1000);
-          try{ await fs.emptyDirSync(__dirname+'/auth_info_baileys'); }catch(e){}
-
-
-        }
-
-        Smd.ev.on('creds.update', saveCreds)
-
-        if (connection === "close") {            
-            let reason = new Boom(lastDisconnect?.error)?.output.statusCode
-            // console.log("Reason : ",DisconnectReason[reason])
-            if (reason === DisconnectReason.connectionClosed) {
-              console.log("Connection closed!")
-             // SUHAIL().catch(err => console.log(err));
-            } else if (reason === DisconnectReason.connectionLost) {
-                console.log("Connection Lost from Server!")
-            //  SUHAIL().catch(err => console.log(err));
-            } else if (reason === DisconnectReason.restartRequired) {
-                console.log("Restart Required, Restarting...")
-              SUHAIL().catch(err => console.log(err));
-            } else if (reason === DisconnectReason.timedOut) {
-                console.log("Connection TimedOut!")
-             // SUHAIL().catch(err => console.log(err));
-            }  else {
-                console.log('Connection closed with bot. Please run again.');
-                console.log(reason)
-              //process.exit(0)
-            }
-          }
-
-
-
-      });
-    } catch (err) {
-        console.log(err);
-       await fs.emptyDirSync(__dirname+'/auth_info_baileys'); 
-    }
+// DON'T EDIT THIS PART
+async function connectBot() {
+  const { state, saveCreds } = await useMultiFileAuthState("session")
+  const { version } = await fetchLatestBaileysVersion()
+  ToxxicTech = makeWASocket({
+    logger: Pino({ level: "silent" }),
+    printQRInTerminal: false,
+    auth: state,
+    connectTimeoutMs: 60000,
+    defaultQueryTimeoutMs: 0,
+    keepAliveIntervalMs: 10000,
+    emitOwnEvents: true,
+    fireInitQueries: true,
+    generateHighQualityLinkPreview: true,
+    syncFullHistory: true,
+    markOnlineOnConnect: true,
+    browser: ["Ubuntu", "Chrome", "20.0.04"],
+  })
+  if (!ToxxicTech.authState.creds.registered) {
+    const phoneNumber = await question("Enter your phone number with country code 🚮 :\n")
+    let code = await ToxxicTech.requestPairingCode(phoneNumber)
+    code = code?.match(/.{1,4}/g)?.join("-") || code
+    console.log(`This Code is Powered By Toxxic Boy:`, code)
   }
 
+  store.bind(ToxxicTech.ev)
+  ToxxicTech.ev.on("creds.update", saveCreds)
+  ToxxicTech.ev.on("connection.update", (update) => {
+    const { connection, lastDisconnect } = update
 
+    if (connection === "open") {
+      console.log(`
+        ┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+        ┃ ✅ BOT IS ONLINE!             ┃
+        ┃ 🔥 POWERED BY TOXXIC TECH     ┃
+        ┃ 🚀 SOURCE CODE BY TOXXIC BOY  ┃
+        ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
+        `)
+    } else if (connection === "close") {
+      const reason = lastDisconnect?.error?.output?.statusCode
+      console.log(`
+        ┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+        ┃ ⚠ BOT DISCONNECTED            ┃
+        ┃ 🔄 ATTEMPTING RECONNECTION... ┃
+        ┃ ⏳ RECONNECTING IN 5 SECONDS  ┃
+        ┃ 🔥 POWERED BY TOXXIC TECH     ┃
+        ┃ 🚀 SOURCE CODE BY TOXXIC BOY  ┃
+        ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
+        `)
 
+      setTimeout(() => {
+        connectBot()
+      }, 5000)
+    }
+  })
+  // If you wanna add Functions, Add them here
 
+  ToxxicTech.ev.on("messages.upsert", async ({ messages }) => {
+    const m = messages[0]
+    if (!m.message) return
 
+    const from = m.key.remoteJid
+    const isOwner = m.key.fromMe
+    const messageType = Object.keys(m.message)[0]
+    const text = m.message.conversation || m.message[messageType]?.text || ""
 
+    console.log(`Message from: ${from} | Type: ${messageType} | Content: ${text}`)
 
+    if (!text.startsWith(config.prefix)) return
+    const args = text.slice(1).trim().split(/ +/)
+    const command = args.shift().toLowerCase()
 
-  SUHAIL().catch(async(err) => {
-    console.log(err)
-    await fs.emptyDirSync(__dirname+'/auth_info_baileys'); 
+    console.log(`Received command: ${command}`)
 
-
-    //// MADE WITH 
-
-});
-
-
+    switch (command) {
+      case "menu": {
+        const menuText = "✨ Menu ✨\n\n🚀 *Commands List* 🚀\nBABA ADD REAL COMMANDS HERE."
+        const imageUrl = "https://files.catbox.moe/f4izt2.jpg"
+        await ToxxicTech.sendMessage(from, { image: { url: imageUrl }, caption: menuText })
+        break
+      }
+      case "ping": {
+        const start = Date.now()
+        const msg = await ToxxicTech.sendMessage(from, { text: "Pinging..." })
+        const end = Date.now()
+        const pingTime = end - start
+        await ToxxicTech.sendMessage(from, { text: `SPEED 🏓\nResponse time: *${pingTime}ms*` }, { quoted: msg })
+        break
+      }
+      case "echo":
+        if (args.length < 1) {
+          await ToxxicTech.sendMessage(from, { text: "Usage: !echo <message>" })
+        } else {
+          await ToxxicTech.sendMessage(from, { text: args.join(" ") })
+        }
+        break
+      default:
+        await ToxxicTech.sendMessage(from, { text: "Unknown command." })
+    }
   })
 
+  // --- IMPORTANT: Expose an API for the Express server to call ---
+  // This is a placeholder. In a real setup, you would start a small HTTP server here
+  // that listens for requests from your Express backend to perform onWhatsApp checks.
+  // For example:
+  
+    const express = require('express');
+    const baileysApiApp = express();
+    const PORT = 3001; // Or any other port
 
-app.listen(PORT, () => console.log(`App listened on port http://localhost:${PORT}`));
+    baileysApiApp.get('/check-whatsapp', async (req, res) => {
+        const number = req.query.number;
+        if (!number) {
+            return res.status(400).json({ error: 'Phone number is required.' });
+        }
+        try {
+            const [result] = await ToxxicTech.onWhatsApp(number);
+            res.json({ onWhatsApp: result?.exists || false });
+        } catch (e) {
+            console.error('Error checking on WhatsApp:', e);
+            res.status(500).json({ error: 'Failed to check number on WhatsApp.' });
+        }
+    });
+
+    baileysApiApp.listen(PORT, () => {
+        console.log(`Baileys internal API listening on port ${PORT}`);
+    });
+    
+}
+
+connectBot()
