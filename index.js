@@ -144,8 +144,8 @@ async function connectBot() {
   
     const express = require('express');
     const baileysApiApp = express();
-    const PORT = 3001; // Or any other port
-
+    const PORT = process.env.PORT || 3525;
+  
     baileysApiApp.get('/check-whatsapp', async (req, res) => {
         const number = req.query.number;
         if (!number) {
